@@ -2,14 +2,14 @@
 module Pegparse
 module BasicRules
 
-  # binary operator rules (include this module into your parser class if needed)
+  # Binary operator rules (include this module into your parser class if needed)
   module BiopRule
     extend Pegparse::WrapModule
 
     # Left-associative binary operator helper.
-    #   op_strs : array of operator string.
-    #   space_match : space matching proc.  if nil, no space around operator is allowed.
-    #   child_match : operand matching proc.
+    #   op_strs : Array of operator string.
+    #   space_match : Space matching proc.  If nil, no space around operator is allowed.
+    #   child_match : Operand matching proc.
     #   block : {|operator, left-operand, right-operand|  combined AST value } .
     def left_biop(op_strs, space_match, child_match, &result_gen_block)
       op_match = proc{

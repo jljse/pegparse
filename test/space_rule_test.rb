@@ -6,15 +6,35 @@ class SpaceParser < Pegparse::Parser
   include Pegparse::BasicRules::SpaceRule
 
   def LINE_COMMENT()
-    "#"
+    /#/
   end
 
   def BLOCK_COMMENT_BEGIN()
-    "/*"
+    /\/\*/
   end
 
   def BLOCK_COMMENT_END()
-    "*/"
+    /\*\//
+  end
+
+  def number()
+    regexp(/[0-9]+/).to_i
+  end
+end
+
+class RubyLikeCommentParser < Pegparse::Parser
+  include Pegparse::BasicRules::SpaceRule
+
+  def LINE_COMMENT()
+    /#/
+  end
+
+  def BLOCK_COMMENT_BEGIN()
+    /^=begin/
+  end
+
+  def BLOCK_COMMENT_END()
+    /^=end/
   end
 
   def number()
@@ -83,6 +103,18 @@ class PegparseSpaceTest < Minitest::Test
     assert_equal 1, x.number()
     x.sp()
     assert_equal 2, x.number()
+  end
+
+  def test_ruby_block_comment()
+    x = RubyLikeCommentParser.new("1\n=begin\n2\n=end\n3")
+    assert_equal 1, x.number()
+    x.sp()
+    assert_equal 3, x.number()
+
+    x = RubyLikeCommentParser.new("1\n=begin\n2\n =end\n3\n=end\n4")
+    assert_equal 1, x.number()
+    x.sp()
+    assert_equal 4, x.number()
   end
 
 end

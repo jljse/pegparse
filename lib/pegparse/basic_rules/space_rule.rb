@@ -6,22 +6,21 @@ module BasicRules
   module SpaceRule
     extend Pegparse::WrapModule
 
-    # One line comment start symbol (allow array for multi symbol)
+    # One line comment start
     def LINE_COMMENT()
-      # "#"
-      # ["#", "//"]
+      # /#/
       nil
     end
 
-    # Block comment start symbol
+    # Block comment start
     def BLOCK_COMMENT_BEGIN()
-      # "/*"
+      # /\/\*/
       nil
     end
 
-    # Block comment end symbol
+    # Block comment end
     def BLOCK_COMMENT_END()
-      # "*/"
+      # /\*\//
       nil
     end
 
@@ -42,34 +41,35 @@ module BasicRules
     end
 
     def line_comment()
-      case LINE_COMMENT()
-      when nil
-        fail()
-      when String
-        str_notrace(LINE_COMMENT())
-      when Array
-        bt_branch(* LINE_COMMENT().map{|x| proc{ str_notrace(x) }})
-      end
+      begin_str = regexp_notrace(LINE_COMMENT())
       regexp_notrace(/.*\n/)
-      return LINE_COMMENT()
+      return begin_str
     end
 
     def block_comment()
-      str_notrace(BLOCK_COMMENT_BEGIN())
+      begin_str = regexp_notrace(BLOCK_COMMENT_BEGIN())
       
+      break_regexp = Regexp.union(BLOCK_COMMENT_BEGIN(), BLOCK_COMMENT_END())
       loop do
-        regexp(Regexp.new("[^" + BLOCK_COMMENT_BEGIN()[0] + BLOCK_COMMENT_END()[0] + "]*"))
-        if peek_str?(BLOCK_COMMENT_BEGIN())
+        # this is very special case to touch @scanner directly
+        skipped = @scanner.check_until(break_regexp)
+        unless skipped
+          break
+        end
+        matched = @scanner.matched
+        consume!(skipped.bytesize - matched.bytesize)
+
+        if peek_regexp?(BLOCK_COMMENT_BEGIN())
           block_comment()
-        elsif peek_str?(BLOCK_COMMENT_END())
+        elsif peek_regexp?(BLOCK_COMMENT_END())
           break
         else
           regexp(/./)
         end
       end
       
-      str_notrace(BLOCK_COMMENT_END())
-      return BLOCK_COMMENT_BEGIN() + BLOCK_COMMENT_END()
+      end_str = regexp_notrace(BLOCK_COMMENT_END())
+      return begin_str + end_str
     end
 
     memoize def any_space_or_comment()

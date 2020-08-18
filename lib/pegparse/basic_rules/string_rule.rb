@@ -2,10 +2,20 @@
 module Pegparse
 module BasicRules
 
-  # string literal rules (include this module into your parser class if needed)
+  # String literal rules (include this module into your parser class if needed)
   module StringRule
     extend Pegparse::WrapModule
 
+    # Rule for <"..."> like literal.
+    #   Result is Array of chunk. (for the purpose of parsing "hello $x again" as ["hello ", $x, " again"].)
+    #   begin_str : head of literal
+    #   end_str : tail of literal
+    #   break_strs : Array of special string under literal.
+    #             When any string in break_strs appears in literal, &break_block whill be called.
+    #   break_block : Handler for special string.  No parameter.
+    #             You can consume special string and followings as much as needed in the block.
+    #             If block result value is String, concatinate it to shibling chunk. (use for escape charcter)
+    #             If block result value is not String, make separated chunk. (use for embedded variable etc.)
     def string_like_literal(begin_str, end_str, break_strs, &break_block)
       break_char = [end_str, *break_strs, "\n"].map{|x| x.byteslice(0)}
 
