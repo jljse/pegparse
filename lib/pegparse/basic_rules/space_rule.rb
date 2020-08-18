@@ -4,21 +4,25 @@ module BasicRules
 
   # Spaces and Comment rules (include this module into your parser class if needed)
   module SpaceRule
-    extend WrapModule
+    extend Pegparse::WrapModule
 
-    # One line comment start symbol
+    # One line comment start symbol (allow array for multi symbol)
     def LINE_COMMENT()
-      "#"
+      # "#"
+      # ["#", "//"]
+      nil
     end
 
     # Block comment start symbol
-    def BLOCK_COMMENT_START()
-      "/*"
+    def BLOCK_COMMENT_BEGIN()
+      # "/*"
+      nil
     end
 
     # Block comment end symbol
     def BLOCK_COMMENT_END()
-      "*/"
+      # "*/"
+      nil
     end
 
     # ------------------------------------
@@ -26,28 +30,36 @@ module BasicRules
     # ------------------------------------
 
     def comment()
-      bt_branch(
-        proc{
-          line_comment()
-        },
-        proc{
-          block_comment()
-        }
-      )
+      rules = []
+      if LINE_COMMENT()
+        rules << proc{ line_comment() }
+      end
+      if BLOCK_COMMENT_BEGIN()
+        rules << proc{ block_comment() }
+      end
+
+      bt_branch(*rules)
     end
 
     def line_comment()
-      str_notrace(LINE_COMMENT())
+      case LINE_COMMENT()
+      when nil
+        fail()
+      when String
+        str_notrace(LINE_COMMENT())
+      when Array
+        bt_branch(* LINE_COMMENT().map{|x| proc{ str_notrace(x) }})
+      end
       regexp_notrace(/.*\n/)
       return LINE_COMMENT()
     end
 
     def block_comment()
-      str_notrace(BLOCK_COMMENT_START())
+      str_notrace(BLOCK_COMMENT_BEGIN())
       
       loop do
-        regexp(Regexp.new("[^" + BLOCK_COMMENT_START()[0] + BLOCK_COMMENT_END()[0] + "]*"))
-        if peek_str?(BLOCK_COMMENT_START())
+        regexp(Regexp.new("[^" + BLOCK_COMMENT_BEGIN()[0] + BLOCK_COMMENT_END()[0] + "]*"))
+        if peek_str?(BLOCK_COMMENT_BEGIN())
           block_comment()
         elsif peek_str?(BLOCK_COMMENT_END())
           break
@@ -57,7 +69,7 @@ module BasicRules
       end
       
       str_notrace(BLOCK_COMMENT_END())
-      return BLOCK_COMMENT_START() + BLOCK_COMMENT_END()
+      return BLOCK_COMMENT_BEGIN() + BLOCK_COMMENT_END()
     end
 
     memoize def any_space_or_comment()
@@ -71,7 +83,7 @@ module BasicRules
       after_pos = current_pos()
 
       # This is special process to return text before current position
-      return @global.text.byteslice(prev_pos ... after_pos)
+      return self.text.byteslice(prev_pos ... after_pos)
     end
 
     # Spaces (must contain newline)

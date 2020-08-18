@@ -30,10 +30,10 @@ module Pegparse
   class DebugContext
     # Range of byte for debug trace enabled.
     attr_accessor :byterange
-    attr_accessor :global
+    attr_accessor :context
     
-    def initialize(global)
-      @global = global
+    def initialize(context)
+      @context = context
       @byterange = (..-1)
       @is_firsttime = true
       @index_cache = [0]
@@ -63,7 +63,7 @@ module Pegparse
       if start_bytepos + @index_cache.size <= n
         for i in start_bytepos+@index_cache.size .. n
           @index_cache[i - start_bytepos] =
-            @index_cache[i - start_bytepos - 1] + escaped_width_for_debug(@global.text.byteslice(i - 1).force_encoding(Encoding::BINARY))
+            @index_cache[i - start_bytepos - 1] + escaped_width_for_debug(@context.text.byteslice(i - 1).force_encoding(Encoding::BINARY))
         end
       end
 
@@ -77,7 +77,7 @@ module Pegparse
     # Print parsing target text around specific position.
     def print_current_text(bytepos, name)
       if @byterange.cover?(bytepos)
-        puts escape_for_debug(@global.text.byteslice(@byterange))
+        puts escape_for_debug(@context.text.byteslice(@byterange))
       end
     end
 
@@ -87,19 +87,50 @@ module Pegparse
         puts indent(bytepos) + name.to_s + " " + message
       end
     end
+
+    # Print debug info on enter rule.
+    def debug_enter(pos, rule_text)
+      print_current_text(pos, rule_text)
+      print_message(pos, rule_text, "")
+    end
+
+    # Print debug info on rule successed.
+    def debug_success(pos, rule_text)
+      print_message(pos, rule_text, "SUCCESS")
+    end
+
+    # Print debug info on rule failed.
+    def debug_failed(pos, rule_text)
+      print_message(pos, rule_text, "FAILED")
+    end
+
+    # Print debug info on memo cached.
+    def debug_memo_cached(pos, rule_text)
+      print_message(pos, rule_text, "CACHED")
+    end
+
+    # Print debug info on memo hit.
+    def debug_memo_cache_hit(pos, rule_text)
+      print_message(pos, rule_text, "CACHEHIT")
+    end
+
   end
 
-  # Global parsing context shared by all Context instance.
-  class GlobalContext
-    attr_accessor :text
-    attr_accessor :error_info
-    attr_accessor :debug
+  # PEG memoize info entry.
+  class MemoEntry
+    attr_accessor :consumed_text_size
+    attr_accessor :value
 
-    def initialize(text)
-      @text = text
+    def initialize(consumed_text_size, value)
+      @consumed_text_size = consumed_text_size
+      @value = value
+    end
+  end
+
+  # PEG memoize info.
+  class MemoInfo
+    def initialize()
       @memo = Hash.new{|h,k| h[k] = {}}
-      @error_info = ErrorInfo.new()
-      @debug = DebugContext.new(self)
     end
 
     def has_memo?(pos, type)
@@ -118,41 +149,6 @@ module Pegparse
       @memo[pos][type] = value
     end
 
-    def set_failed(pos, expected)
-      @error_info.save_failed(pos, expected)
-    end
-
-    def debug_enter(pos, rule_text)
-      @debug.print_current_text(pos, rule_text)
-      @debug.print_message(pos, rule_text, "")
-    end
-
-    def debug_success(pos, rule_text)
-      @debug.print_message(pos, rule_text, "SUCCESS")
-    end
-
-    def debug_failed(pos, rule_text)
-      @debug.print_message(pos, rule_text, "FAILED")
-    end
-
-    def debug_memo_cached(pos, rule_text)
-      @debug.print_message(pos, rule_text, "CACHED")
-    end
-
-    def debug_memo_cache_hit(pos, rule_text)
-      @debug.print_message(pos, rule_text, "CACHEHIT")
-    end
-  end
-
-  # PEG memoize info.
-  class MemoInfo
-    attr_accessor :consumed_text_size
-    attr_accessor :value
-
-    def initialize(consumed_text_size, value)
-      @consumed_text_size = consumed_text_size
-      @value = value
-    end
   end
 
   module WrapMethodHelper
@@ -186,7 +182,6 @@ module Pegparse
   end
 
   module WrapModule
-
     # Wrap method with debug trace.
     def trace(sym)
       WrapMethodHelper.wrap_method(self, sym, :trace_body)
@@ -197,34 +192,40 @@ module Pegparse
     def memoize(sym)
       WrapMethodHelper.wrap_method(self, sym, :memoize_body)
     end
-  
+  end
+
+  # Saved status to rollback context transaction.
+  class ContextStatus
+    attr_accessor :pos
   end
 
   # Parsing context.
   class Context
-    attr_accessor :global
+    attr_accessor :text
+    attr_accessor :error_info
+    attr_accessor :debug
     attr_accessor :scanner
   
     def initialize(text = nil)
       if text
-        @global = GlobalContext.new(text)
+        @text = text
+        @memo = MemoInfo.new()
+        @error_info = ErrorInfo.new()
+        @debug = DebugContext.new(self)
         @scanner = StringScanner.new(text)
       end
     end
   
-    # Duplicate context to make transaction.
-    def begin_transaction()
-      ret = self.class.new
-      ret.global = @global
-      ret.scanner = StringScanner.new(@global.text)
-      ret.scanner.pos = @scanner.pos
+    # save status to make transaction.
+    def get_context_status()
+      ret = ContextStatus.new
+      ret.pos = @scanner.pos
       return ret
     end
     
-    # Feedback other context to commit transaction.
-    def accept_transaction(src)
-      @global = src.global
-      @scanner.pos = src.scanner.pos
+    # load status to rollback transaction.
+    def set_context_status(stat)
+      @scanner.pos = stat.pos
     end
   
     #-----------------------------
@@ -234,7 +235,6 @@ module Pegparse
     # Check whether current context matches to string.
     # If success, return x. If not, return nil.
     def peek_str?(x)
-      # @global.text[@pos, x.size] == x
       size = @scanner.match?(x)
       if size
         return x
@@ -280,7 +280,7 @@ module Pegparse
 
     # Trigger backtrack.
     def failed(expected = nil)
-      @global.set_failed(current_pos(), expected)
+      @error_info.save_failed(current_pos(), expected)
       throw :failed
     end
   
@@ -288,14 +288,15 @@ module Pegparse
     # Returns array of block's result value.
     def bt_loop(&block)
       ret = []
+      x = nil
       catch(:failed) do
         loop do
-          x = self.begin_transaction()
-          val = x.instance_eval &block
-          self.accept_transaction(x)
+          x = self.get_context_status()
+          val = block.call()
           ret << val
         end
       end
+      self.set_context_status(x)
       return ret
     end
   
@@ -303,15 +304,16 @@ module Pegparse
     # Returns array of block's result value.
     def bt_loop_requred(&block)
       ret = []
-      ret << (x.instance_eval &block)
+      ret << (block.call())
+      x = nil
       catch(:failed) do
         loop do
-          x = self.begin_transaction()
-          val = x.instance_eval &block
-          self.accept_transaction(x)
+          x = self.get_context_status()
+          val = block.call()
           ret << val
         end
       end
+      self.set_context_status(x)
       return ret
     end
   
@@ -320,12 +322,12 @@ module Pegparse
     def bt_branch(*branches)
       branches.each do |br|
         val = nil
-        x = self.begin_transaction()
+        x = self.get_context_status()
         catch(:failed) do 
-          val = x.instance_eval &br
-          self.accept_transaction(x)
+          val = br.call()
           return val
         end
+        self.set_context_status(x)
       end
       failed()
     end
@@ -333,21 +335,22 @@ module Pegparse
     # PEG operation "?" .
     # Returns block's result value or nil.
     def bt_maybe(&match)
-      x = self.begin_transaction()
+      x = self.get_context_status()
       catch(:failed) do
-        val = x.instance_eval &match
-        self.accept_transaction(x)
+        val = match.call()
         return val
       end
+      self.set_context_status(x)
       return nil
     end
   
     # PEG operation "&" .
     # Returns block's result value.
     def bt_lookahead(&match)
-      x = self.begin_transaction()
+      x = self.get_context_status()
       catch(:failed) do
-        val = x.instance_eval &match
+        val = match.call()
+        self.set_context_status(x)
         return val
       end
       failed()
@@ -355,15 +358,16 @@ module Pegparse
   
     # PEG operation "!" .
     def bt_lookahead_deny(&match)
-      x = self.begin_transaction()
+      x = self.get_context_status()
       is_success = false
       catch(:failed) do
-        x.instance_eval &match
+        match.call()
         is_success = true
       end
       if is_success
         failed()
       else
+        self.set_context_status(x)
         return nil
       end
     end
@@ -384,15 +388,15 @@ module Pegparse
       is_success = false
       start_pos = current_pos()
       begin
-        @global.debug_enter(start_pos, trace_text)
+        @debug.debug_enter(start_pos, trace_text)
         result = body.call()
         is_success = true
         return result
       ensure
         if is_success
-          @global.debug_success(start_pos, trace_text)
+          @debug.debug_success(start_pos, trace_text)
         else
-          @global.debug_failed(start_pos, trace_text)
+          @debug.debug_failed(start_pos, trace_text)
         end
       end
     end
@@ -401,9 +405,9 @@ module Pegparse
     def memoize_body(sym, args, &body)
       prev_pos = current_pos()
   
-      if @global.has_memo?(prev_pos, sym)
-        @global.debug_memo_cache_hit(prev_pos, sym)
-        cached_memo_info = @global.get_memo(prev_pos, sym)
+      if @memo.has_memo?(prev_pos, sym)
+        @debug.debug_memo_cache_hit(prev_pos, sym)
+        cached_memo_info = @memo.get_memo(prev_pos, sym)
         if cached_memo_info.value
           consume!(cached_memo_info.consumed_text_size)
           return cached_memo_info.value
@@ -420,8 +424,8 @@ module Pegparse
           return result
         ensure
           after_pos = current_pos()
-          @global.debug_memo_cached(prev_pos, sym)
-          @global.set_memo(prev_pos, sym, MemoInfo.new(after_pos - prev_pos, is_success ? result : nil))
+          @debug.debug_memo_cached(prev_pos, sym)
+          @memo.set_memo(prev_pos, sym, MemoEntry.new(after_pos - prev_pos, is_success ? result : nil))
         end
       end
     end
