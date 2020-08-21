@@ -121,6 +121,23 @@ module BasicRules
       nil
     end
 
+    # Heredoc-like syntax handling helper.
+    # Content of heredoc is located in the "next line" of current position.
+    #       This helper detect "next line" when "\n" is skipped by SpaceRule.any_space_or_comment.
+    #
+    #     RESTRICTION:
+    #        | x <<y |  In ruby, heredoc parsing depends on sematics. (e.g. x and y definition)
+    #        |  p 0  |  It could be heredoc and next line becomes heredoc-content,
+    #        | y     |  could be shift-operator and next line becomes normal expression.
+    #
+    #       Pegparse cannot treat such ambiguity.
+    #       Once you call handle_heredoc, next line will always be parsed as heredoc content,
+    #         and never parse it again as other syntax even backtrack happen.
+    #       
+    #   content_match_proc : matching here-doc content. you have to consume text including end symbol.
+    #                        result value will always be cached, so called only 1 time.
+    #   content_setter_proc : {|content_match_proc's result value| save it to anywhere you like. }
+    #                         after 2nd call of handle_heredoc, content always comes from cache.
     def handle_heredoc(content_match_proc, content_setter_proc)
       pos = current_pos()
 
