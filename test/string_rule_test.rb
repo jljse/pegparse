@@ -6,11 +6,11 @@ class StringParser < Pegparse::Parser
   include Pegparse::BasicRules::StringRule
 
   def string_literal_basic
-    string_like_literal('"', '"', [])
+    string_like_literal(/"/, /"/, ['"'])
   end
 
   def string_literal_escape
-    string_like_literal('"', '"', ['\\']) do
+    string_like_literal(/"/, /"/, ['"', '\\']) do
       bt_branch(
         proc{ str('\\n'); "\n" },
         proc{ str('\\t'); "\t" },
@@ -20,7 +20,7 @@ class StringParser < Pegparse::Parser
   end
 
   def string_literal_embedded
-    string_like_literal('"', '"', ['\\', '$']) do
+    string_like_literal(/"/, /"/, ['"', '\\', '$']) do
       bt_branch(
         proc{ str('\\$'); '$' },
         proc{
@@ -33,7 +33,7 @@ class StringParser < Pegparse::Parser
   end
 
   def string_literal_recursive
-    string_like_literal('"', '"', ['\\', '#{']) do
+    string_like_literal(/"/, /"/, ['"', '\\', '#{']) do
       bt_branch(
         proc{ str('\\#'); '#' },
         proc{

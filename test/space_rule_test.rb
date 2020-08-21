@@ -92,7 +92,7 @@ class PegparseSpaceTest < Minitest::Test
   end
 
   def test_block_comment()
-    x = SpaceParser.new("1 /*aaa*/ 2 /* / / */ /* a\na\na */ 3")
+    x = SpaceParser.new("1 /*aaa*/ 2 /* / * / */ /* a\na\na */ 3")
     assert_equal 1, x.number()
     x.sp()
     assert_equal 2, x.number()

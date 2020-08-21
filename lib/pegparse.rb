@@ -117,6 +117,7 @@ module Pegparse
   end
 
   # PEG memoize info entry.
+  # value == nil means matching failure.
   class MemoEntry
     attr_accessor :consumed_text_size
     attr_accessor :value
@@ -206,14 +207,12 @@ module Pegparse
     attr_accessor :debug
     attr_accessor :scanner
   
-    def initialize(text = nil)
-      if text
-        @text = text
-        @memo = MemoInfo.new()
-        @error_info = ErrorInfo.new()
-        @debug = DebugContext.new(self)
-        @scanner = StringScanner.new(text)
-      end
+    def initialize(text)
+      @text = text
+      @memo = MemoInfo.new()
+      @error_info = ErrorInfo.new()
+      @debug = DebugContext.new(self)
+      @scanner = StringScanner.new(text)
     end
   
     # save status to make transaction.
@@ -408,7 +407,7 @@ module Pegparse
       if @memo.has_memo?(prev_pos, sym)
         @debug.debug_memo_cache_hit(prev_pos, sym)
         cached_memo_info = @memo.get_memo(prev_pos, sym)
-        if cached_memo_info.value
+        if cached_memo_info.value != nil
           consume!(cached_memo_info.consumed_text_size)
           return cached_memo_info.value
         else
