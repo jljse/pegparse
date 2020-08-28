@@ -23,6 +23,8 @@ module BasicRules
       @content_setter = content_setter
     end
 
+    # read memoized content or execute matching for content,
+    # and call proc to pass the content.
     def process_content()
       if @is_processed
         if @value == nil

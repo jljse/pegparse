@@ -232,7 +232,8 @@ module Pegparse
     #-----------------------------
 
     # Check whether current context matches to string.
-    # If success, return x. If not, return nil.
+    # @param [String] x
+    # @return [String,nil]  If success, return x. If not, return nil.
     def peek_str?(x)
       size = @scanner.match?(x)
       if size
@@ -243,7 +244,8 @@ module Pegparse
     end
 
     # Check whether current context matches to regexp.
-    # If success, return matched string. If not, return nil.
+    # @param [Regexp] regexp
+    # @return [String,nil]  If success, return matched string. If not, return nil.
     def peek_regexp?(regexp)
       size = @scanner.match?(regexp)
       if size
@@ -254,21 +256,26 @@ module Pegparse
     end
   
     # Check whether current context is on EOS.
+    # @return [Boolean]
     def peek_eos?
       @scanner.eos?
     end
   
     # Consume(move context forward) n-byte.
+    # @param [Integer] n
     def consume!(n)
       @scanner.pos += n
     end
   
     # Get n-byte string at current context.
+    # @param [Integer] n
+    # @return [String]
     def current_text(n)
       @scanner.peek(n)
     end
   
     # Get current context position(in byte).
+    # @return [Integer]
     def current_pos()
       @scanner.pos
     end
@@ -285,6 +292,7 @@ module Pegparse
   
     # PEG operation "*" .
     # Returns array of block's result value.
+    # @param [Proc] block
     def bt_loop(&block)
       ret = []
       x = nil
@@ -301,6 +309,7 @@ module Pegparse
   
     # PEG operation "+" .
     # Returns array of block's result value.
+    # @param [Proc] block
     def bt_loop_requred(&block)
       ret = []
       ret << (block.call())
@@ -318,6 +327,7 @@ module Pegparse
   
     # PEG operation "/" .
     # Returns block's result value.
+    # @param [Array<Proc>] branches
     def bt_branch(*branches)
       branches.each do |br|
         val = nil
@@ -333,6 +343,7 @@ module Pegparse
   
     # PEG operation "?" .
     # Returns block's result value or nil.
+    # @param [Proc] match 
     def bt_maybe(&match)
       x = self.get_context_status()
       catch(:failed) do
@@ -345,6 +356,7 @@ module Pegparse
   
     # PEG operation "&" .
     # Returns block's result value.
+    # @param [Proc] match 
     def bt_lookahead(&match)
       x = self.get_context_status()
       catch(:failed) do
@@ -356,6 +368,7 @@ module Pegparse
     end
   
     # PEG operation "!" .
+    # @param [Proc] match 
     def bt_lookahead_deny(&match)
       x = self.get_context_status()
       is_success = false
@@ -434,6 +447,8 @@ module Pegparse
   # Parser base class.
   class Parser < Context
     # Match to string
+    # @param [String] s
+    # @return [String]  Matched string
     def str_notrace(s)
       if peek_str?(s)
         consume!(s.bytesize)
@@ -442,12 +457,17 @@ module Pegparse
         failed(s)
       end
     end
+
     # Match to string
+    # @param [String] s
+    # @return [String]    Matched string
     trace def str(s)
       str_notrace(s)
     end
 
     # Match to regexp
+    # @param [Regexp] pat
+    # @return [String]    Matched string
     def regexp_notrace(pat)
       m = peek_regexp?(pat)
       if m
@@ -459,7 +479,10 @@ module Pegparse
         failed(pat)
       end
     end
+
     # Match to regexp
+    # @param [Regexp] pat
+    # @return [String]    Matched string
     trace def regexp(pat)
       regexp_notrace(pat)
     end
