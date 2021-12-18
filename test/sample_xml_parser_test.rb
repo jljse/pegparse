@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "pegparse/samples/xml_parser"
+require_relative "../samples/xml_parser"
 require 'strscan'
 
 class SampleXmlParserTest < Minitest::Test

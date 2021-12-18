@@ -1,4 +1,4 @@
-require_relative '../../pegparse'
+require_relative '../lib/pegparse'
 
 module Pegparse::Sample
 end

@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "pegparse/samples/json_parser"
+require_relative "../samples/json_parser"
 require 'strscan'
+require 'pathname'
 
 class SampleJsonParserTest < Minitest::Test
   def test_initialize
