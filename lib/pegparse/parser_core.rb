@@ -35,7 +35,7 @@ class Pegparse::ParserCore
     catch(:backtrack) do
       ret = __send__(current_start_rule_symbol)
     end
-    @context.errors.clear_errors if ret
+    @context.errors.clear_errors if eos?
     return ret
   end
 
