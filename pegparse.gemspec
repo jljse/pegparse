@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description   = "provide base class for PEG like recursive descent parser."
   spec.homepage      = "https://github.com/jljse/pegparse"
   spec.license       = "MIT"
-  spec.required_ruby_version = ">= 2.7.0"
+  spec.required_ruby_version = ">= 3.0.0"
 
   # spec.metadata["allowed_push_host"] = "TODO: Set to 'https://mygemserver.com'"
 
