@@ -93,27 +93,23 @@ class Pegparse::Sample::XmlParser < Pegparse::ParserBase
   end
 
   def single_quote_string
-    ret = ''
     read("'")
-    while true
-      ret << read(/[^'\\]*/)
-      break if peek("'")
-      ret << read(/./)
-    end
+    ret = string_like("'", /[^'\\]*/){
+      read('\\')
+      read(/./m)
+    }
     read("'")
-    ret
+    ret[0]
   end
 
   def double_quote_string
-    ret = ''
     read('"')
-    while true
-      ret << read(/[^"\\]*/)
-      break if peek('"')
-      ret << read(/./)
-    end
+    ret = string_like('"', /[^"\\]*/){
+      read('\\')
+      read(/./m)
+    }
     read('"')
-    ret
+    ret[0]
   end
 
   rule def xml_open_tag

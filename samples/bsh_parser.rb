@@ -222,49 +222,36 @@ class Pegparse::Sample::BshParser < Pegparse::ParserBase
     end
   end
 
-  rule def string_double_quote
-    ret = []
-    is_only_string = true
-    str = ''
-    read('"')
-    while true
-      str << read(/[^"\\$]*/)
-      break if peek('"')
-      if peek('\\')
+  def string_double_quote_special_process
+    choice(
+      ->{
         read('\\')
         escaped = read(/./m)
         case escaped
         when 'n'
-          str << "\n"
+          "\n"
         when "\n"
+          ""
         else
-          str << escaped
+          escaped
         end
-      elsif peek('$(')
-        exp = inline_command()
-        ret << str if str.size > 0
-        ret << exp
-        is_only_string = false
-        str = ''
-      elsif peek('$')
-        varref = variable_reference()
-        ret << str if str.size > 0
-        ret << varref
-        is_only_string = false
-        str = ''
-      else
-        backtrack
-      end
-    end
+      },
+      ->{
+        inline_command()
+      },
+      ->{
+        variable_reference()
+      }
+    )
+  end
+
+  rule def string_double_quote
     read('"')
-    ret << str if str.size > 0
-    if !is_only_string
-      [:dquote, *ret]
-    elsif ret.size > 0
-      ret.first
-    else
-      ''
-    end
+    ret = string_like('"', /[^"\\$]*/) {
+      string_double_quote_special_process()
+    }
+    read('"')
+    [:dquote, *ret]
   end
 
   rule def inline_command
@@ -309,39 +296,9 @@ class Pegparse::Sample::BshParser < Pegparse::ParserBase
   end
 
   rule def variable_expansion_string
-    ret = []
-    is_only_string = true
-    str = ''
-    while true
-      str << read(/[^\\$}]*/)
-      break if peek('}')
-      if peek('\\')
-        read('\\')
-        escaped = read(/./m)
-        case escaped
-        when 'n'
-          str << "\n"
-        when "\n"
-        else
-          str << escaped
-        end
-      elsif peek('$(')
-        exp = inline_command()
-        ret << str if str.size > 0
-        ret << exp
-        is_only_string = false
-        str = ''
-      elsif peek('$')
-        varref = variable_reference()
-        ret << str if str.size > 0
-        ret << varref
-        is_only_string = false
-        str = ''
-      else
-        backtrack
-      end
-    end
-    ret << str if str.size > 0
+    ret = string_like('}', /[^\\$}]*/) {
+      string_double_quote_special_process()
+    }
     if ret.size > 1
       ret
     elsif ret.size == 1
@@ -369,42 +326,16 @@ class Pegparse::Sample::BshParser < Pegparse::ParserBase
   ).to_set
   rule def raw_operand
     backtrack if RESERVED_WORDS.include?(peek(/[^\s]*/))
-    ret = []
-    str = ''
-    while true
-      str << read(/[^\s\\&|><$;]*/)
-      break unless peek(/[\\$]/)
-      if peek('\\')
-        read('\\')
-        escaped = read(/./m)
-        case escaped
-        when "\n"
-        when "n"
-          str << "\n"
-        else
-          str << escaped
-        end
-      elsif peek('$(')
-        exp = inline_command()
-        ret << str if str.size > 0
-        ret << exp
-        str = ''
-      elsif peek('$')
-        varref = variable_reference()
-        ret << str if str.size > 0
-        ret << varref
-        str = ''
-      else
-        backtrack
-      end
-    end
-    ret << str if str.size > 0
+
+    ret = string_like(/[\s&|><;]/, /[^\s&|><;\\$]*/) {
+      string_double_quote_special_process()
+    }
     if ret.size > 1
       ret
-    elsif ret.size == 1
-      ret.first
-    else
+    elsif ret.size == 0 || ret.first.size == 0
       backtrack()
+    else
+      ret.first
     end
   end
 end

@@ -42,15 +42,13 @@ class Pegparse::Sample::JsonParser < Pegparse::ParserBase
   end
 
   rule def json_string_node
-    ret = ''
     read('"')
-    while true
-      ret << read(/[^"\\]*/)
-      break if peek('"')
-      ret << read(/./)
-    end
+    ret = string_like('"', /[^"\\]*/){
+      read("\\")
+      read(/./m)
+    }
     read('"')
-    ret
+    ret[0]
   end
 
   def json_null_node

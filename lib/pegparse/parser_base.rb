@@ -100,4 +100,38 @@ class Pegparse::ParserBase < Pegparse::ParserCore
     }
     ret
   end
+
+  # string literal
+  # @param end_pattern [String, Regexp] End of literal (e.g. "'", "\"")
+  # @param normal_pattern [Regexp] Pattern for string without special process (e.g. /[^'\\]*/)
+  # @param special_process [Proc] Process for special characters. Block should return processed result.
+  # @return [Array<String,Object>]  Match result. Result has one ore more elements.
+  #   If block returned non-string result, array has multiple elements.
+  def string_like(end_pattern, normal_pattern, &special_process)
+    ret = []
+    str = ''
+    while true
+      str << read(normal_pattern)
+      break if peek(end_pattern)
+      break if eos?
+      break unless special_process
+      processed = special_process.call()
+      break unless processed
+      if processed.is_a? String
+        str << processed
+      else
+        ret << str if str.size > 0
+        ret << processed
+        str = ''
+      end
+    end
+    ret << str if str.size > 0
+
+    if ret.size > 0
+      ret
+    else
+      ['']
+    end
+  end
+
 end
