@@ -12,14 +12,6 @@ class Pegparse::Sample::JsonParser < Pegparse::ParserBase
     self.start_rule_symbol = :start_rule
   end
 
-  def line_comment
-    backtrack
-  end
-
-  def block_comment
-    backtrack
-  end
-
   def start_rule
     sp()
     json_node()

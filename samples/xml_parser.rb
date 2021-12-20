@@ -19,10 +19,6 @@ class Pegparse::Sample::XmlParser < Pegparse::ParserBase
     self.start_rule_symbol = :start_rule
   end
 
-  def line_comment
-    backtrack
-  end
-
   rule def block_comment
     read('<!--')
     read(/.*?-->/m)

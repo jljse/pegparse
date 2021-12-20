@@ -14,10 +14,6 @@ class Pegparse::Sample::BshParser < Pegparse::ParserBase
     read(/#.*/)
   end
 
-  def block_comment
-    backtrack
-  end
-
   def inline_sp
     read(/( |\\\n)*/)
   end

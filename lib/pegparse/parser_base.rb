@@ -20,19 +20,21 @@ class Pegparse::ParserBase < Pegparse::ParserCore
   end
 
   def line_comment
-    read(/#[^\n]*/)
+    # read(/#[^\n]*/)
+    backtrack
   end
 
   rule def block_comment
-    ret = ""
-    ret << read('/*')
-    ret << zero_or_more {
-      part = read(/[^*]*/)
-      break if peek('*/')
-      part << '*' if optional('*')
-    }.join
-    ret << read('*/')
-    ret
+    # ret = ""
+    # ret << read('/*')
+    # ret << zero_or_more {
+    #   part = read(/[^*]*/)
+    #   break if peek('*/')
+    #   part << '*' if optional('*')
+    # }.join
+    # ret << read('*/')
+    # ret
+    backtrack
   end
 
   # match for spaces
